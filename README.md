@@ -1,2 +1,2 @@
 # green-screen
-Green screen your camera input.Addd background to green screen
+Green screen your camera input.Add background to green screen
