@@ -1,3 +1,4 @@
+import os
 import cv2
 import numpy as np
 import configuration
@@ -12,25 +13,37 @@ class Captureimage():
     def set_resolution(self):
         vid = cv2.VideoCapture(0)
         ret, frame = vid.read()
-        self.camera_resolution = (frame.shape[0]. frame.shape[1])
+        if ret and frame is not None:
+            self.camera_resolution = (frame.shape[1], frame.shape[0])
+        vid.release()
 
     def select_background_image(self, file_path):
+        if not os.path.exists(file_path):
+            alt_path = os.path.join(os.path.dirname(__file__), file_path)
+            if os.path.exists(alt_path):
+                file_path = alt_path
         img = cv2.imread(file_path, cv2.IMREAD_COLOR)
-        self.background_image = cv2.resize(img, self.camera_resolution)
+        if img is not None:
+            self.background_image = cv2.resize(img, self.camera_resolution)
         return img
 
     def add_background(self, frame):
         hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
         mask = cv2.inRange(hsv_frame, self.lower_value, self.higher_value)
-        res = cv2.bitwise_and(frame, frame, mask = mask)
+        res = cv2.bitwise_and(frame, frame, mask=mask)
         filtered = frame - res
-        filtered = np.where(filtered == 0, self.background_image, filtered)
+        if self.background_image is not None:
+            if self.background_image.shape[:2] != frame.shape[:2]:
+                self.background_image = cv2.resize(self.background_image, (frame.shape[1], frame.shape[0]))
+            filtered = np.where(filtered == 0, self.background_image, filtered)
         return filtered
 
     def capture_webcam(self):
         vid = cv2.VideoCapture(0)
-        while(True):
+        while vid.isOpened():
             ret, frame = vid.read()
+            if not ret:
+                break
             modified_frame = self.add_background(frame)
             cv2.imshow("Masked image", modified_frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -40,6 +53,6 @@ class Captureimage():
         cv2.destroyAllWindows()
 
 if __name__ == "__main__":
-    image_capture  = Captureimage()
+    image_capture = Captureimage()
     image_capture.select_background_image("../files/white_bg.jpg")
     image_capture.capture_webcam()
